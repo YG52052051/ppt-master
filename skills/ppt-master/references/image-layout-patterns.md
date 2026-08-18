@@ -1,262 +1,281 @@
-# Image-Text Layout Patterns
+# Image and Formula Layout Pattern Catalog
 
-A vocabulary registry of ways images can be placed on a slide. The point of this file is to **expand the mental list of options** so that when you reach for an image layout, you do not default to the same three patterns (left/right, top/bottom, full-bleed cover).
-
-Every entry has a name plus a short technical hint. Common techniques get a single line. Less obvious or easily forgotten techniques get a short paragraph — not a full tutorial, but enough that a model unfamiliar with the project can implement it without guessing. This is a registry, not a teaching document; no use-case prescriptions, no decision tables.
-
-> **Numbers are stable identifiers, not sequence.** The file is split into **Part 1 — Primary Structures** (#1–#19, #38–#56, #73–#81) and **Part 2 — Modifier Layers** (#20–#37, #57–#72). Numbers jump within each Part because Primary structures were grouped first; existing references to `#38`, `#48`, etc. anywhere in the project still resolve correctly.
+Compact composition vocabulary for prepared images, illustrations, and rendered formula assets. Use the patterns as options, not as a checklist.
 
 ---
 
-## Core Principle — Two Layers
+## 1. Catalog Boundary
 
-Almost every pattern below is an instance of one underlying split:
-
-> **The image carries atmosphere, world-building, emotional weight. Native SVG shapes carry information, data, editable text.**
-
-This is the single most underused move in image-heavy decks. The default reflex is to place image and text in adjacent rectangles. The far more powerful move — especially for content-rich pages — is to let the image **be the canvas** (often full-bleed) and draw native vector elements (annotation cards, flow nodes, KPI tiles, leader lines, network diagrams, dashboards) directly on top.
-
-Anything that must be editable, numerically accurate, contain Chinese, or be styled to the deck's exact palette belongs in the SVG layer regardless of what the image looks like underneath.
-
----
-
-# Part 1 — Primary Structures
-
-Pick one or more of these as the page's bones. Cross-primary combinations are encouraged (see Composition Guidance).
-
-## Container Layouts (where the image sits)
-
-1. **Full-bleed background with floating title** — `<image x=0 y=0 width=1280 height=720 preserveAspectRatio="xMidYMid slice"/>` + scrim `<rect>` for legibility + overlay `<text>`.
-
-2. **Left-third image + right text body** — `<image x=0 y=0 width=~427 height=720>` on the left; text area in the remaining width; optional right-edge gradient fade for smooth transition.
-
-3. **Right-third image + left text body** — mirror of #2.
-
-4. **Right image bleeding off the canvas edge** — `<image>` width extended past viewBox; text on left with a rightward gradient fade so the image emerges from the text area without a visible boundary.
-
-5. **Top-band image + bottom multi-column text** — `<image x=0 y=0 width=1280 height=~340>` at the top + bottom-fade gradient + 2–3 evenly spaced text columns below.
-
-6. **Bottom-band image + top title + middle text** — mirror of #5 with the image at the bottom and a top-fade gradient.
-
-7. **Top-and-bottom symmetric split** — image occupies 50% (top or bottom) with a divider line or thin gradient band separating the halves.
-
-8. **Z-pattern serpentine** — three rows, image on the left in rows 1 and 3, on the right in row 2 (or alternating). Each row roughly 1/3 canvas height; visual flow zigzags down the page.
-
-9. **3×3 grid with central image** — nine cells; center cell holds the image, the other 8 hold text blocks, color swatches, or small data widgets.
-
-10. **Centered image with radial callouts pointing outward** — image (often circular via `clipPath`) at canvas center; multiple `<line>` leader lines + small `<circle>` endpoints + offset text labels in surrounding space.
-
-11. **Diagonal split with directional gradient (not hard polygon cut)** — full-bleed `<image>` (do NOT hard-clip) + overlay `<rect fill="url(#grad)">` whose `<linearGradient>` axis runs along the desired diagonal + a `<line>` on the diagonal to make the divider visible. The gradient does the "splitting" softly; hard polygon clipping produces ugly stair-step edges on text panels.
-
-12. **Faded image as backdrop with oversized overlay text** — `<image>` + heavy semi-transparent `<rect fill="bg-color" fill-opacity="0.5–0.7">` over it + huge `<text>` (80–120px) on top. Image becomes texture; text is the subject.
-
-13. **Narrow vertical image strip + giant horizontal title** — `<image x=0 y=0 width=200–280 height=720>` + thick divider `<rect>` + large `<text>` (60–90px) in the remaining width.
-
-14. **Horizontal banner strip cutting through mid-section** — `<image y=middle width=1280 height=200–280>` with edge fades; text blocks above and below the band.
-
-15. **Multi-image montage with bold text spanning across** — multiple `<image>` tiled with 2–4px gaps + large `<text>` (60–100px) in a darkened band spanning the full montage. The band uses `<rect fill-opacity="0.5–0.7">` to keep text legible across all underlying images.
-
-16. **Negative-space dominant — small image, mostly whitespace** — image and text together occupy less than 40% of the canvas; rest is empty.
-
-17. **Picture-in-picture inset** — large `<image>` background + small `<image>` overlaid inside it with a `<rect>` frame.
-
-18. **Image as full-height sidebar column** — narrow `<image x=0 y=0 width=~200–280 height=720>`; rest of canvas is content area.
-
-19. **Image floating in whitespace with thin frame and caption** — `<image>` + thin `<rect fill="none" stroke="…">` frame around it + `<text>` caption below.
-
-## Image-as-Canvas + Native Overlay (the most underused family)
-
-This is the family that opens up the largest design space and the one AI is most likely to skip. The shared pattern: image fills the slide (or a large region), native SVG elements are layered on top to carry the actual information. None of the overlay elements need to be generated by the image model — they are vector primitives you draw yourself.
-
-38. **Background image + annotation cards with bezier leader lines** — full-bleed `<image>` + 2–4 small info cards (`<rect rx>` + icon + title + one-line text) placed in the image's calm regions. From each card, draw a bezier `<path>` ending in a `marker-end` arrow that points to the specific object in the image being annotated. Card text and leader lines are editable; image is the scene.
-
-39. **Background image + flow nodes drawn over the scene** — the image is a real or rendered scene (workshop, control room, landscape). On top, draw a dashed `<path>` route that traces a workflow through the scene, with numbered `<circle>` nodes at each stop. Each node = number + icon + label. The flow is fully editable; the image is atmosphere.
-
-40. **Background image + floating KPI metric cards** — full-bleed image (often an operations photo) + dark scrim + multiple `<rect>` cards in negative-space regions. Each card = icon + small label + large metric number. Image gives context; cards give the data.
-
-41. **Background image + measurement lines and module tags (engineering overlay)** — used on technical / blueprint / cross-section images. Draw measurement lines with end-caps (`<line>` + perpendicular ticks) spanning a feature, with a centered label box reading dimensions or part names. Add tagged callouts with `<rect>` + monospace text. Reads as engineering drawing markup.
-
-42. **Background image + glassmorphism UI panels** — image is the visual world; on top, draw UI elements (semi-transparent panels, progress arcs, status badges, indicators). Panels use `fill-opacity="0.6–0.8"` + thin light-color strokes; arcs via `<path d="…A…">`. Looks like a live dashboard floating above the scene.
-
-43. **Background image + native data chart on top** — AI image generation cannot produce accurate data charts. Solution: use an AI-generated dashboard image as **visual reference only** (clearly labeled as such in a caption), and draw the actual chart with native SVG primitives (`<line>` axes, `<path>` series, `<circle>` data points) directly on or next to it. Required marker if exporting: `<!-- chart-plot-area: x_min,y_min,x_max,y_max -->` inside the chart group.
-
-44. **Background image + native network/architecture diagram** — same logic as #43 but for structural diagrams. Image provides atmosphere or visual anchor; the actual nodes, connections, and labels are SVG circles, lines, icons, and text — all editable.
-
-45. **Background image + numbered hotspots with sidebar legend** — small numbered `<circle>` markers placed on the image at points of interest. A sidebar (left or right) lists "1. … 2. … 3. …" with corresponding descriptions.
-
-46. **Background image + bordered "lens" rectangle highlighting a sub-region** — full-bleed image + a bordered `<rect fill="none" stroke="accent" stroke-width="3"/>` framing a sub-region + caption nearby. Frame draws the eye to one detail without occluding the surrounding context.
-
-## Multi-Image Compositions
-
-47. **Small multiples — 3–6 same-kind images in an evenly spaced row** — each in identical container, each with identical caption block underneath (title + one-line description). This is **not** a generic grid: the identical framing is itself the message — readers compare across panels because the structure is the same. Useful for style comparisons, time-series snapshots, product variations.
-
-48. **Side-by-side comparison (before/after, A/B, then/now)** — two `<image>` of equal size in 50/50 split with thin divider `<line>` and "before" / "after" labels.
-
-49. **Asymmetric collage** — one large `<image>` + 2–3 smaller `<image>` arranged around it; sizes vary, gaps consistent.
-
-50. **Tiled grid (2×2, 2×3, 3×3) with equal cells** — `cell_size = (canvas - total_gap) / cols`; consistent `gap=2–20px`.
-
-51. **Mosaic** — irregular tile sizes packed together with or without thin gaps; each image clipped to its tile's rect.
-
-52. **Image strip / filmstrip** — horizontal sequence of `<image>` elements with thin gaps; same height, varying widths allowed.
-
-53. **Vertical image stack** — column of `<image>` aligned by width, shared annotations on one side.
-
-54. **Overlapping image stack** — `<image>` elements with overlapping `x/y` positions; each subsequent one in front (z-order by document order); often combined with slight rotation for layered photo-print look.
-
-55. **Diptych split — two images abutting at 50/50** — vertical or horizontal split with optional thin divider `<line>`.
-
-56. **Image triptych** — three independent `<image>` side-by-side, equal widths or 2:1:2 etc. (distinct from #26 baked-in triptych, where the three scenes are inside one image file).
-
-## Imported Deck Patterns (image-led promotional pages)
-
-These patterns come from polished image-text decks where photos define the slide skeleton instead of sitting inside generic cards. Treat them as layout vocabulary for travel, product, venue, hospitality, real-estate, event, and brochure-style decks.
-
-73. **Full-bleed poster image + side title stack** — full-slide image, title stack anchored to the left or lower-left third, no title card. Use native text directly over a calm image region with a subtle scrim only when needed. The title stack can mix huge Latin / display text, local-language title, and small brand/date line.
-
-74. **TOC image-navigation cards** — 3–5 equal vertical image cards across the page. Each card gets a same-color translucent overlay, large chapter number, chapter title, and one-line summary. The TOC becomes a visual preview of the deck, not a text list.
-
-75. **Asymmetric dual-image chapter banner** — two images occupy the upper half: one smaller panel and one wide dominant panel, usually left-small / right-wide. The chapter title lives in the lower half with an oversized section number as a background anchor.
-
-76. **Mid-page image belt with native text inset** — a wide image strip cuts through the middle 45–60% of the slide. Put the key text inside a darker or calmer region of the strip, using native text and a small label, while the top area carries the page heading.
-
-77. **Photo mosaic with a text cell** — an irregular grid where one grid cell is deliberately reserved for copy and the other cells are photos. The missing photo cell creates hierarchy; do not fill every grid slot just because a grid exists.
-
-78. **Ambient banner + evidence photo + text panel** — one wide atmospheric image spans the upper portion, a smaller concrete/evidence photo sits below, and a solid color or tinted panel carries the copy on the side. Useful when one image sets mood and another proves the product/place.
-
-79. **Ribbon-header image cards** — 3 columns, each with a colored ribbon or chevron title above the image, image in the middle, prose below. The ribbon carries category identity; the photo carries evidence; the body copy stays editable.
-
-80. **Side hero image + staggered evidence cards** — one full-height or near-full-height image occupies a side column. The opposite side uses 2–4 smaller evidence cards placed at staggered vertical positions instead of a rigid grid, producing movement and editorial rhythm.
-
-81. **Illustration-as-layout field** — a large decorative vector or cutout illustration behaves like an image region: it sets the page's spatial rhythm, while text blocks sit around or inside its calm areas. Use this when a photo would be too literal but the page still needs image-scale visual mass.
-
----
-
-# Part 2 — Modifier Layers
-
-Stack any of these freely on top of a Primary structure. Multiple Modifiers per page is the expected case, not the exception.
-
-## Non-rectangular Image Shapes
-
-20. **Circular crop** — `<clipPath><circle cx cy r/></clipPath>` referenced by `<image clip-path="url(#id)"/>`.
-
-21. **Rounded rectangle crop** — `<clipPath><rect rx ry/></clipPath>`; the `rx` value controls roundness.
-
-22. **Ellipse / oval crop** — `<clipPath><ellipse cx cy rx ry/></clipPath>`.
-
-23. **Hexagonal / polygonal crop** — `<clipPath><polygon points="x1,y1 x2,y2 …"/></clipPath>`; remember to keep all vertices inside the image's display rectangle.
-
-24. **Custom path crop (blob, arrow, leaf, silhouette)** — `<clipPath><path d="…"/></clipPath>`; allows any curved or organic shape. PowerPoint export translates this to `custGeom` and survives roundtrip.
-
-25. **Layered paper-cut stack** — clip each image layer under the image-only contract in [`shared-standards.md`](shared-standards.md) §1.2; draw vector layers directly in their final geometry. A small conditional shadow on each layer can create physical separation.
-
-26. **Triptych baked into a single wide image** — one wide `<image width=1160 height=334>` whose internal composition already contains 2–3 scenes. Generate the triptych as one image (not three separate calls) when scene-to-scene consistency matters — the model preserves character identity, lighting continuity, and color grading far more reliably when panels are produced together.
-
-## Overlay & Masking Treatments
-
-> **Crop displacement (HARD rule for text over images).** `preserveAspectRatio="xMidYMid slice"` center-crops whatever the source aspect ratio does not cover — when source and display aspects differ, the subject can land under the text column even if the prompt asked for it on the "focal side". Before layering text on a slice-cropped image: estimate the crop from the aspect-ratio difference, and keep the **entire text column on the scrim's opaque plateau** — text must never start inside a gradient's transition zone. When the subject position is unverified, fall back to an opaque treatment (`#30` at high opacity, or a solid panel) instead of a two-stop scrim (`#29`).
-
-27. **Linear gradient mask for text legibility** — `<linearGradient>` in `<defs>` (set `x1/y1/x2/y2` for direction) + overlay `<rect fill="url(#grad)">`. Most common is top-to-bottom darkening on full-bleed cover images.
-
-28. **Radial gradient vignette** — `<radialGradient cx cy r>` with dark outer stops; overlay `<rect>`. Focuses attention by darkening the periphery.
-
-29. **Two-stop scrim — opaque on text side, transparent on focal side** — `<linearGradient>` with one stop at `stop-opacity="0.9"` and another at `stop-opacity="0"`. Use when text sits on one side and the image's subject on the other.
-
-30. **Flat semi-transparent rectangle overlay** — `<rect fill="#000" fill-opacity="0.4"/>` over the image. Uniform darkening/lightening; simplest scrim.
-
-31. **Color-tinted overlay** — `<rect fill="#brandColor" fill-opacity="0.15–0.25"/>`. Pushes a foreign-looking image toward the deck's palette without regenerating it.
-
-32. **Multi-stop scrim with hue shift** — three-or-more-stop `<linearGradient>` where stops are different colors (e.g. dark navy → transparent → warm orange). This re-grades the image's color world without regenerating — particularly useful when an AI image came back with the right composition but wrong color temperature.
-
-33. **Spotlight mask — clear region surrounded by darkness** — cover the canvas with `<rect>` filled by a `<radialGradient>` whose inner stop is fully transparent and outer stop is opaque dark. Reads as a flashlight beam on the focal area. Use sparingly — it kills everything outside the spotlight.
-
-34. **Gaussian-blur backdrop** — blur the background in the source image, then layer sharp SVG content above it. Native filter export maps the supported blur graph to a glow/shadow effect; it does not preserve a blurred-image backdrop.
-
-35. **Duotone treatment** — two-color mapping of a photograph (e.g. deep navy shadows + warm cream highlights). Bake it into the source image; the native PPT route does not support a runtime duotone filter chain.
-
-36. **Drop shadow under image panel** — `<filter><feDropShadow dx dy stdDeviation flood-color flood-opacity/></filter>` applied to the image's container `<rect>` (or to the `<image>` itself). Standard depth lift.
-
-37. **Inner / outer glow on overlay shape** — `<filter><feGaussianBlur/><feMerge/></filter>` on a shape, or simply a slightly larger blurred `<rect>` underneath the target.
-
-## Image as Texture / Atmosphere
-
-57. **Full-bleed image with extreme low opacity as texture wash** — full-bleed `<image>` + overlay `<rect fill="bg-color" fill-opacity="0.7–0.85"/>` so the image only barely shows through.
-
-58. **Image fragment as decorative corner element** — small `<image>` (often with `clipPath`) placed in one corner; not the focus, just visual seasoning.
-
-59. **Image as horizontal divider band** — narrow `<image height=80–150>` placed between two text sections instead of a `<line>` divider.
-
-60. **Image as ambient noise** — visible but low contrast; mood-setting only, not informational.
-
-61. **Image as watermark behind body content** — large `<image>` at very low opacity behind body text. Use either a pre-baked low-alpha image or a high-opacity overlay `<rect>` to suppress visibility.
-
-## Special Techniques
-
-62. **Same image, two references — full view + zoom-callout** — reference the same image file twice in two `<image>` elements: one shows the full scene at normal size; the second uses `clipPath` (circle or rectangle) plus a larger display size to "zoom into" a sub-region. Connect them with a bezier `<path>` ending in `marker-end`; ring the zoom with a `<circle stroke>` so it reads as a magnifying lens. No special asset needed — the zoom effect comes from same-source-different-display.
-
-63. **Transparent PNG sticker / cutout** — an RGBA PNG (with alpha channel) placed via standard `<image>` — no `clipPath` required, the transparency lives in the file itself. Useful for subjects that should not appear inside a rectangular frame (people cutouts, product shots, decorative motifs floating over backgrounds). **Spot illustrations from the sheet→slice pipeline land here**: `slice_images.py --alpha` outputs transparent cutouts (see [image-generator.md](./image-generator.md) §4.3), so a sliced element is a ready sticker — never box it in a rectangle. Other sources of transparent PNGs: (a) an AI backend with native transparent output, (b) a chroma-key image stripped separately, (c) a user-supplied asset. A cutout begs for the decorative-placement family — combine with `#4` (bleed off the edge), `#58` (corner fragment), `#66` (fade into background), `#69` (slight rotation), or `#49` (asymmetric collage); the worst thing to do with a transparent spot is center it in a tidy box.
-
-64. **Image with embedded text rendered by the AI** — text becomes part of the artwork: decorative lettering, designed title, hand-lettered keyword. Prompt with explicit text content — name the exact characters literally. Use for text that is part of the artwork and will not change. Anything that must be correct or editable goes in the SVG `<text>` layer (#65).
-
-65. **Image with NO text — labels added as native SVG** — generate the image with explicit "no text, no letters, no numbers, no signs" instruction (`text_policy: none`), then place all labels as `<text>` overlays. The right call when labels will be reworded, must stay exact, or carry data that must stay editable — pair with `#64` when stable visual identifiers (axis labels, subplot letters, unit symbols) belong inside the image instead.
-
-66. **Image fading into the solid background** — soften the image's edge into the deck's background color via a `<linearGradient>` overlay whose end-stop matches the background hex exactly. The image's rectangular boundary disappears, producing seamless integration.
-
-67. **Image with knock-out / cut-out shape** — overlay a shape filled with the background color or another image, creating the impression of a hole punched through the underlying image.
-
-68. **Text-as-mask over image** — letterforms revealing image through them. Under the canonical SVG compatibility boundary in [`shared-standards.md`](shared-standards.md), realize this pattern as a pre-rendered image rather than a runtime effect. Prompt for "large lettering revealing the underlying scene through letterforms" and treat the result as a fixed artistic choice.
-
-69. **Image rotated at a slight angle for editorial feel** — `transform="rotate(angle cx cy)"` on the `<image>` or its container `<g>`; 2–6 degrees typical. Adds dynamism without breaking layout.
-
-70. **Image with thin colored matte frame** — `<rect fill="none" stroke="#color" stroke-width="2–6"/>` over or around the image edge. Single rule, single color.
-
-71. **Image with multiple stacked frames for "photo print" aesthetic** — nested `<rect>` outlines or `<rect>` containers of slightly different sizes giving a "framed photograph" look.
-
-72. **Image-to-image transition / merge** — two `<image>` elements with overlapping regions, one or both with gradient masks (from group C) creating a soft blend between them.
-
----
-
-## Composition Guidance
-
-A page is built by layering. Pick one or more **Primary Structures** (Part 1) as the page's bones, then add any number of **Modifier Layers** (Part 2) for finish. Both stack — the question on each page is "is the next layer still earning its place", not "have I exceeded a quota".
-
-**Cross-primary combinations are encouraged.** A side-by-side comparison (#48) where each side is annotated with bezier-leader cards (#38) is one page, not a violation. A 3×3 grid (#9) whose center cell is upgraded to an image-as-canvas with KPI overlay (#40) reads as one composition. The old reflex "one primary per page" tends to under-use the catalog — combine when the page asks for it.
-
-**Modifier stacking pattern that works in practice** — observed on real content pages combining one Primary with four Modifiers:
-
-- one Primary from Part 1 (e.g. #48 side-by-side comparison)
-- `#21` rounded-rectangle clipPath on the image (rx=6 or circle)
-- `#27` top-edge linearGradient in the deck's accent color, opacity 0.55 → 0
-- `#66` bottom-edge linearGradient fading to background color, opacity 0 → 0.95
-- small color-block badge + reversed-out label replacing any opaque color bar that would otherwise sit over the image
-
-Combine freely. The "AI-default" failure mode is the opposite: defaulting to bare #2 / #3 (left/right split) with no Modifier at all.
-
-**Reference — image-led promotional deck moves (not a constraint)**:
-
-| Page intent | Pattern candidates |
+| Boundary | Rule |
 |---|---|
-| Cover / ending with strong atmosphere | `#73` + `#27` / `#30` only if contrast needs it |
-| Visual table of contents | `#74` + `#30` / `#31` |
-| Chapter divider | `#75` |
-| Venue / destination overview | `#76` or `#78` |
-| Many product/place photos | `#77` or `#50` when equality is the message |
-| Service / feature comparison | `#79` |
-| Benefits with one dominant proof image | `#80` |
-| Light promotional page without photos | `#81` |
+| Selection | **Reference — not a constraint**: use any pattern, combine compatible ones, or author a clearer free-form composition; no ID, family, or coverage quota applies |
+| Stable IDs | `#1`–`#100` are stable lookup handles, not a workflow |
+| Primary vs modifier | One or more compatible Primary Structures + `0..n` Modifier Layers |
+| Asset ownership | Consume prepared project-local assets; no acquisition or processing during SVG realization |
+| Exact information | Keep exact or editable text, data, labels, and annotations native |
 
-**Skip-detection signal** — if every page's `Layout pattern` column resolves to bare #2 / #3 / #5 / #6 with no Modifier ids, the catalog was not consulted. Re-read and reconsider.
-
-**Cross-page through-line (recurring motif).** The patterns above are per-page, but a deck reads as *designed* when one illustration motif family recurs across pages — a cover anchor, section dividers repeating the motif for chapter identity (`#75`), and small `#63` spots from the same family threaded through the body. Keep them one family (shared rendering / palette / subject world), vary scale and placement, and never let the recurrence harden into a per-section quota. Planning lives in [strategist.md](./strategist.md) (deck illustration motif); generation mechanics split by role — hero / divider anchors: [image-generator.md](./image-generator.md) §4.1 primitives; body spot sheets: §4.3.
-
-## Hard Constraints
-
-- Long body copy, data points, numeric labels, and Chinese text always go in the SVG layer — never baked into the image.
-- All project-wide SVG compatibility exceptions and conditional mappings are
-  owned by [`shared-standards.md`](shared-standards.md). This catalog neither
-  restates nor relaxes that contract; each pattern records only its
-  scenario-specific rendering choice.
+| Mechanism, not generic “mask” | Owner |
+|---|---|
+| Layout geometry | [`image-layout-spec.md`](./image-layout-spec.md) |
+| Crop: policy / legality / wrapper | [`svg-image-embedding.md`](./svg-image-embedding.md) / [`shared-standards-core.md`](./shared-standards-core.md) / [`svg-effects.md`](./svg-effects.md) |
+| Scrim / gradient / wash / depth paint | [`svg-effects.md`](./svg-effects.md) |
+| Boolean hole / text subtraction | [`native-shape-authoring.md`](./native-shape-authoring.md) |
+| Per-pixel mask / blend | Prepared / baked asset; [`svg-effects.md`](./svg-effects.md) boundary |
+| Chart overlay / motion | [`executor-chart.md`](./executor-chart.md) / [`animations.md`](./animations.md) |
 
 ---
 
-For sizing math (calculating container dimensions from image aspect ratio when using side-by-side intent), see [`image-layout-spec.md`](image-layout-spec.md). This file is the design vocabulary; that file is the dimension calculator.
+## 2. Situation Router
+
+| Page need | Pattern options |
+|---|---|
+| Quiet, direct evidence | `#16` negative space, `#19` framed figure, `#47` small multiples, `#48` comparison |
+| One visual should become the page canvas | `#38`–`#46` native overlays |
+| One source should span unusual geometry | `#82` one picture, `#100` addressable pictures, `#89` sharp subject over receded copy |
+| Several visuals should read as one system | `#50` grid, `#77` mosaic with text cell, `#88` tessellation, `#92` split tiling, `#93` curve array, `#94` depth row |
+| A foreground needs an opening or reveal | `#83` true hole, `#90` cut scrim, `#95` background-registered fill, `#68` text subtraction |
+| Text needs contrast without discarding the visual | `#29` directional scrim, `#33` spotlight, `#97` prepared frosted panel, `#98` grid scrim |
+| A cover, divider, or promotional page needs image-led structure | `#73`–`#81` |
+| Consecutive pages should share one visual world | `#87` cross-page pan opportunity |
+
+---
+
+## 3. Primary Structures
+
+### 3.1 Single-Image Layouts
+
+1 · 73. **Full-bleed title structures** — **#1** floats a title over one canvas-filling image; **#73** uses a poster-like side or lower-corner title stack without a title card.
+
+2–3. **Side image and text** — **#2** places the visual left and copy right; **#3** mirrors that relationship.
+
+4. **Edge-bleed image** — extend the visual beyond one canvas edge so it enters or exits the page instead of sitting in a box.
+
+5–7. **Horizontal split structures** — **#5** uses an upper image band with content columns below; **#6** places the image band below a title/content field; **#7** gives image and content balanced top/bottom fields with a deliberate seam.
+
+9. **Central image in a 3×3 field** — put the visual at the center and use surrounding cells for labels, evidence, or small data.
+
+10. **Centered image with radial callouts** — place one focal visual centrally and route native callouts outward.
+
+11. **Diagonal visual/content transition** — use a diagonal edge or directional fade whose contour supports the page's reading direction.
+
+12. **Receded image with oversized type** — push the image into the background and make typography the dominant foreground.
+
+13 · 18. **Vertical image columns** — **#13** is a slim strip beside giant horizontal type; **#18** is a full-height sidebar beside a general content field.
+
+14 · 76. **Mid-page image bands** — **#14** runs a banner between content above and below; **#76** places native copy in a calm part of a wider image belt while keeping the heading outside.
+
+16. **Negative-space dominant** — keep the visual and copy compact so whitespace carries hierarchy.
+
+19. **Framed image with caption** — float one image in whitespace with a restrained frame and native caption.
+
+81. **Illustration-as-layout field** — let a large illustration or cutout set the page rhythm; place copy in its calm regions.
+
+### 3.2 Image-as-Canvas Layouts with Native Overlay
+
+Use the prepared visual as the spatial field while native SVG carries the information layer.
+
+38. **Annotated evidence** — place compact annotation cards with routed leaders over the visual.
+
+39. **Process through a scene** — connect numbered flow nodes along meaningful geometry in a real or illustrated scene.
+
+40. **Contextual metrics** — place native KPI tiles in calm regions of the visual.
+
+41. **Engineering overlay** — add measurement lines, end ticks, module tags, and exact labels.
+
+42. **Interface overlay** — add translucent UI panels, progress indicators, badges, and native arcs.
+
+43. **Accurate chart over visual context** — draw the chart natively, treat the image as context only, and follow [`executor-chart.md`](./executor-chart.md).
+
+44. **Architecture or network overlay** — draw native nodes, connections, icons, and labels over the scene.
+
+45. **Hotspots with sidebar legend** — pair numbered points on the visual with a matching native legend.
+
+46. **Detail lens** — border one sub-region and place a native caption nearby.
+
+### 3.3 Multi-Image Layouts
+
+8. **Z-pattern serpentine** — alternate image and text positions down successive bands to create a zigzag reading path.
+
+15. **Montage with spanning type** — tile several visuals and run one legible title treatment across the assembled field.
+
+17. **Picture-in-picture inset** — overlay one framed inset image over a larger image; the sources may differ. Use `#62` when an overview and detail must share one source.
+
+47. **Small multiples** — arrange same-kind images in one evenly spaced row with identical containers and caption structures so peers can be compared.
+
+48. **Before/after or A/B comparison** — place two equally sized image containers side by side and label both states explicitly.
+
+49. **Asymmetric collage** — balance one dominant visual with smaller supporting visuals using consistent gaps.
+
+50. **Equal-cell tiled grid** — use equal containers when equality and scanability are the message.
+
+51. **Irregular mosaic** — pack different-sized tiles into one coherent field.
+
+52–53. **Filmstrip and stack** — **#52** aligns a horizontal sequence by height while allowing content-driven widths; **#53** aligns a vertical sequence by width with annotations on a shared side.
+
+54. **Overlapping image stack** — use z-order and restrained offsets to create a layered print or archive feel.
+
+55–56. **Diptych and triptych** — **#55** pairs adjacent images; **#56** aligns three distinct sources, unlike baked **#26**.
+
+74. **Image-navigation table of contents** — turn sections into visual navigation cards with native numbering and summaries.
+
+75. **Asymmetric dual-image chapter banner** — pair a compact image with a wider image and anchor them with a native section marker.
+
+77. **Photo mosaic with a text cell** — reserve one mosaic cell for copy so absence of a photo creates hierarchy.
+
+78. **Ambient image, evidence image, and text panel** — let one visual establish mood and another provide concrete proof.
+
+79. **Ribbon-header image cards** — give peer image columns distinct native ribbon or chevron headings.
+
+80. **Side hero with staggered evidence cards** — pair a full-height hero field with supporting cards that step through the opposite side.
+
+88. **Non-rectangular tessellation** — tile clipped geometric cells and reserve selected cells for native copy or color.
+
+92. **Split tiling** — fragment one parent contour into interlocking cells, each holding a different image as an independent object.
+
+93. **Containers arrayed along a curve** — distribute containers consistently along an arc, wave, or ring; keep image orientation intentional.
+
+94. **Embracing arc row** — create depth with a center-weighted scale and vertical-offset rhythm while keeping the objects two-dimensional.
+
+---
+
+## 4. Modifier Layers
+
+### 4.1 Reveal, Crop, and Registration
+
+20–23. **Basic crops** — **#20** is a circle, **#21** a rounded rectangle, **#22** an ellipse, and **#23** a bounded polygon.
+
+24. **Custom-path crop** — use one authored organic or silhouette contour when basic crops cannot express it.
+
+25. **Layered paper-cut stack** — clip image layers independently and draw vector layers in their final geometry.
+
+62. **Full view plus zoom callout** — reuse one source for an overview and a differently cropped detail linked by native annotation.
+
+67. **Painted knock-out** — cover part of an image with the matching background or another prepared visual; use this imitation only when the surrounding field makes it credible.
+
+68. **Text-as-subtraction** — reveal an image or field through glyph-shaped holes; materialize supported text Boolean geometry through [`native-shape-authoring.md`](./native-shape-authoring.md).
+
+83. **Panel with a true hole** — subtract an opening from a foreground panel so changing content behind it remains valid; follow [`native-shape-authoring.md`](./native-shape-authoring.md) §6.
+
+84. **Deliberately misregistered fragments** — separate same-source fragments and break their alignment intentionally for torn, misprint, or glitch language.
+
+85. **Subject breaking out of a container** — layer a registered foreground subject across its frame boundary; use an already prepared cutout when the composition requires one.
+
+90. **Scrim with true cutouts** — subtract image-reveal openings from a full-canvas scrim; lettering and complex cuts follow [`native-shape-authoring.md`](./native-shape-authoring.md) §6.
+
+95. **Background-registered shape fill** — fill a stationary shape with the page background sampled in root coordinates so it impersonates a hole while remaining an object.
+
+82. **One image across detached shapes** — export one native picture with disjoint clip subpaths so one continuous scene spans every shape.
+
+100. **Same-source addressable crops** — export several independent native pictures that share an exact source coordinate system; follow [`executor-image.md`](./executor-image.md) §1.
+
+The following three patterns are topologically different and are not interchangeable:
+
+| ID | Sources | Exported picture topology | Visual relationship |
+|---|---|---|---|
+| One-picture compound crop (`#82`) | One source | One native picture with disjoint clip subpaths | One continuous scene spans detached shapes; fragments are not independent picture objects |
+| Addressable same-source crops (`#100`) | One exact source reference | Several independently addressable native pictures | Crops share one source coordinate system and remain in exact registration; follow [`executor-image.md`](./executor-image.md) §1 |
+| Different-source split tiling (`#92`) | Different sources | Several independent picture objects in interlocking cells | The parent contour unifies peers; scene continuity across cells is not implied |
+
+### 4.2 Tone and Contrast
+
+27. **Linear-gradient scrim** — add directional contrast while retaining image detail.
+
+28. **Radial vignette** — darken the periphery to emphasize the central field.
+
+29. **Opaque-to-transparent directional scrim** — protect copy on one side while keeping the focal side clear.
+
+30–31. **Flat washes** — **#30** uniformly darkens or lightens with a neutral wash; **#31** uses a palette color to integrate a foreign-looking image.
+
+32. **Multi-hue gradient scrim** — shift color temperature or bridge image regions with a multi-stop field.
+
+33. **Radial spotlight** — keep a selected region clear while surrounding content recedes.
+
+57 · 60 · 61. **Receded image fields** — **#57** is a texture wash, **#60** ambient atmosphere, and **#61** a watermark behind body copy.
+
+66. **Fade into a solid background** — match the fade endpoint to the page background so the image edge disappears.
+
+98. **Grid scrim with varied cell opacity** — modulate one underlying image through a seamless grid of translucent cells.
+
+### 4.3 Placement, Framing, and Depth
+
+58. **Decorative corner fragment** — use a cropped image fragment as a secondary corner accent.
+
+59. **Image divider band** — replace a line between content regions with a narrow visual strip.
+
+36. **Shadow under an image panel** — apply one §6.4 filter directly to a standalone unclipped `<image>`; for a clipped picture, keep `clip-path` on the image and put the filter on its exact single-image outer carrier. When the lifted object includes a frame or caption, shadow that supporting shape instead.
+
+37. **Glow on an overlay shape** — emphasize an overlay boundary within the supported effect contract.
+
+69. **Editorial rotation** — rotate an image or its container slightly when the style benefits from an informal print gesture.
+
+70–71. **Frames** — **#70** traces the image with one restrained outline; **#71** repeats nearby outlines for a layered photo-print treatment.
+
+86. **Contour echo** — reuse a non-rectangular clip contour as an offset stroke instead of boxing it in a rectangle.
+
+91. **Faceted gradient form** — build a folded or ribbon-like object from adjacent facets with consistent light logic.
+
+### 4.4 Prepared-Asset Treatments
+
+**Prepared-asset gate**: every treatment below consumes its named project-local asset; it does not authorize creation during SVG realization. In particular, `#96`, `#97`, and `#99` require their derivative pairs in advance. If a required asset is absent, return to the active workflow's preparation owner or choose a native treatment.
+
+26. **Baked triptych** — use one prepared wide source containing coordinated internal scenes; distinct from separate-image **#56**.
+
+34. **Blurred-image backdrop** — use a prepared blurred asset; runtime image blur is not the backdrop mechanism.
+
+35. **Duotone photograph** — use a prepared two-color image treatment.
+
+63. **Transparent sticker or cutout** — use a prepared RGBA asset and preserve its open silhouette.
+
+64. **Artwork with embedded lettering** — use only for deliberate, fixed lettering that belongs to the artwork.
+
+65. **Text-free artwork with native labels** — keep authoritative or editable labels outside the asset as native SVG.
+
+72. **Soft image-to-image blend** — use a precomposited or baked-alpha asset when arbitrary images must blend per pixel.
+
+89. **Sharp subject over a receded full-frame copy** — register two references to the same source; any blurred or desaturated derivative must already be prepared.
+
+96. **Cutout subject re-laid over its source photo** — use a base photo plus its prepared transparent subject cutout, aligned in one coordinate system.
+
+97. **Frosted-glass image panel** — use a base photo plus its prepared registered blurred crop beneath the text panel.
+
+99. **Selective desaturation** — use a prepared desaturated base plus a registered color subject layer.
+
+### 4.5 Cross-Page Continuity
+
+87. **Cross-page image pan opportunity** — show different regions of one wide image across consecutive pages so the audience recognizes one continuous place. Keep the source and framing relationship coherent; if motion is enabled, [`animations.md`](./animations.md) owns its implementation.
+
+---
+
+## 5. Composition Playbook
+
+**Reference — not a constraint**: build from the page's communication job, not catalog coverage. Choose one or more compatible Primary Structures, then add only Modifier Layers or native overlays that solve an observed page problem.
+
+### 5.1 Combination Procedure
+
+| Pass | Decision |
+|---|---|
+| Skeleton | Select the Primary relationship: one visual field, comparison, sequence, evidence view, or multi-image system. Compatible Primaries may share one page. |
+| Diagnose | Name the concrete integration problem: weak text contrast, aspect mismatch, unclear focus, missing reveal/opening, unrelated peers, or exact information needing a native layer. |
+| Repair | Add the smallest legal Modifier or native overlay that solves each chosen problem; add no technique without a job. |
+| Integrate | Reuse contours, baselines, gap rhythm, palette, and required registration so the layers read as one composition. |
+| Stop | Omit or simplify the next layer when it repeats a job, competes with the message, requires an unavailable asset, or weakens legibility/editability. |
+
+### 5.2 High-Yield Combinations
+
+| Page job | Composition candidates |
+|---|---|
+| Atmospheric cover or divider | `#1` / `#73` + `#29`; use `#90` + optional `#86` when an opening should supply the page character |
+| One source does not fit the canvas | `#89` + `#24` or `#82`, with every copy kept in exact registration |
+| Comparison with evidence on both sides | `#48` + `#38`; keep labels, leaders, and exact claims native |
+| Scene-backed evidence or metrics | `#38` / `#40` + `#29` or `#30`; let the image carry context and native SVG carry information |
+| Several sources should read as one object | `#92` + restrained `#70`, or `#88` + a native text/color cell |
+| One continuous scene should span detached shapes | `#82` + optional `#86`; keep one-picture topology |
+| Same-source windows must remain independent | `#100`; add `#87` only when consecutive pages benefit from continuity or motion |
+| A busy visual needs one focal region | `#33`, or prepared-pair `#96` / `#99` when native contrast treatment is insufficient |
+| Formula or technical figure needs explanation | `#19` + `#41` / `#46`; keep explanatory labels native |
+
+**Registration boundary**: registration-dependent effects succeed only when their declared coordinate relationship remains exact. Preserve registration for `#62`, `#82`, `#85`, `#89`, `#95`, `#96`, `#97`, `#99`, and `#100`; `#84` is the intentional exception.
+
+**Formula placement**: treat a rendered formula as a prepared visual asset. Use whitespace patterns such as `#16` or `#19` for isolated derivations, `#10`, `#41`, or `#46` for annotated formulas, and `#47` or `#48` for comparisons; keep editable explanatory text native.
+
+All compatibility details remain owned by [`shared-standards-core.md`](./shared-standards-core.md) and its routed references.

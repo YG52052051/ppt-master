@@ -60,6 +60,7 @@ if str(_ROOT_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_ROOT_SCRIPTS_DIR))
 
 from console_encoding import configure_utf8_stdio  # noqa: E402
+from resource_paths import icon_search_dirs_for_project  # noqa: E402
 from server_common import (  # noqa: E402
     claim_lock as _claim_lock,
     clear_lock as _clear_lock,
@@ -95,8 +96,8 @@ from svg_to_pptx.geometry_properties import (  # noqa: E402
     materialize_inline_geometry_properties,
 )
 
-_ICONS_DIR = _SCRIPTS_DIR.parent.parent / 'templates' / 'icons'
 _USE_ICON_PATTERN = re.compile(r'<use\s+[^>]*data-icon="[^"]*"[^>]*/>')
+_XLINK_HREF = '{http://www.w3.org/1999/xlink}href'
 
 # Per-path mtime caches: key = absolute path str, value = (mtime, payload).
 # Entry is evicted/replaced when the file's mtime changes, so stale data
@@ -136,12 +137,35 @@ def _cache_put(cache: dict, lock: threading.Lock, path: str, mtime: float, value
         cache[path] = (mtime, value)
 
 
+def _normalize_preview_hrefs(root: ET.Element) -> None:
+    """Normalize legacy XLink references in the browser-only SVG copy.
+
+    ElementTree otherwise serializes an unregistered/legacy namespace with an
+    arbitrary prefix. The HTML SVG parser only gives special namespace handling
+    to ``xlink:href``; an arbitrary prefix can therefore render as an inert
+    attribute after ``innerHTML`` insertion. SVG 2 ``href`` works for both
+    images and local ``use`` references and avoids that parser boundary.
+    """
+    for elem in root.iter():
+        legacy_href = elem.get(_XLINK_HREF)
+        if legacy_href is None:
+            continue
+        if elem.get('href') is None:
+            elem.set('href', legacy_href)
+        elem.attrib.pop(_XLINK_HREF, None)
+
+
 # Lock / liveness helpers are shared with confirm_ui via server_common.
 
 
-def _inline_icons(content: str) -> tuple[str, list[dict]]:
+def _inline_icons(
+    content: str,
+    icons_dir: Path,
+    fallback_dir: Optional[Path] = None,
+) -> tuple[str, list[dict]]:
     """Replace <use data-icon="..."/> with rendered <g> for browser preview.
 
+    Resolve icons from the project directory first, then the shared library.
     Returns (rewritten_content, warnings). Each warning is
     ``{"icon": <name>, "reason": <str>}`` so the frontend can surface
     "icon X not found" to the user instead of silently dropping it.
@@ -160,7 +184,7 @@ def _inline_icons(content: str) -> tuple[str, list[dict]]:
             if not icon_name:
                 warnings.append({'icon': '', 'reason': 'missing data-icon attribute'})
                 continue
-            icon_path, _ = resolve_icon_path(icon_name, _ICONS_DIR)
+            icon_path, _ = resolve_icon_path(icon_name, icons_dir, fallback_dir)
             color = str(attrs.get('fill', '#000000'))
             elements, style, base_size = extract_paths_from_icon(icon_path, color)
         except Exception as exc:
@@ -404,6 +428,7 @@ def create_app(
     svg_dir = project_path / 'svg_output'
     images_dir = project_path / 'images'
     assets_dir = project_path / 'assets'
+    icons_dir, icons_fallback_dir = icon_search_dirs_for_project(project_path)
 
     app = Flask(__name__, static_folder='static', static_url_path='/static')
     app.config['PROJECT_PATH'] = project_path
@@ -572,8 +597,10 @@ def create_app(
                     logger.warning('slide parse failed: %s: %s', svg_file.name, exc)
                 _cache_put(_LIST_CACHE, _LIST_CACHE_LOCK, path_str, mtime, disk_count)
 
-            mem_count = len(annotations.get(svg_file.name, {}))
-            annotation_count = max(disk_count, mem_count)
+            if svg_file.name in annotations:
+                annotation_count = len(annotations[svg_file.name])
+            else:
+                annotation_count = disk_count
 
             slides.append({
                 'name': svg_file.name,
@@ -589,15 +616,42 @@ def create_app(
     def _safe_svg_path(name: str):
         """Validate slide name and return safe path. Returns None if invalid.
 
-        The early string checks reject obvious bad inputs; the resolve()+startswith()
+        The early string checks reject obvious bad inputs; the resolve()+relative_to()
         check is the authoritative path traversal guard.
         """
         if '/' in name or '\\' in name or '..' in name:
             return None
         svg_file = (svg_dir / name).resolve()
-        if not str(svg_file).startswith(str(svg_dir.resolve())):
+        try:
+            svg_file.relative_to(svg_dir.resolve())
+        except ValueError:
             return None
         return svg_file
+
+    def _get_annotation_snapshot(name: str):
+        """Return the page's complete staged annotation state, loading it once."""
+        annotations = app.config['ANNOTATIONS']
+        if name in annotations:
+            return annotations[name], None
+
+        svg_file = _safe_svg_path(name)
+        if svg_file is None:
+            return None, (jsonify({'error': 'Invalid slide name'}), 400)
+        if not svg_file.exists():
+            return None, (jsonify({'error': 'Slide not found'}), 404)
+
+        try:
+            root = ET.parse(str(svg_file)).getroot()
+        except ET.ParseError as exc:
+            logger.warning('slide parse failed: %s: %s', name, exc)
+            return None, (jsonify({'error': f'Failed to parse SVG: {exc}'}), 500)
+
+        assign_temp_ids(root)
+        annotations[name] = {
+            item['element_id']: item['annotation']
+            for item in parse_annotations(root)
+        }
+        return annotations[name], None
 
     @app.route('/api/slide/<name>')
     def get_slide(name: str):
@@ -648,19 +702,26 @@ def create_app(
                     if '}' in tag:
                         tag = tag.split('}', 1)[1]
                     id_to_tag[eid] = tag
+            _normalize_preview_hrefs(root)
             content = ET.tostring(root, encoding='unicode', xml_declaration=False)
-            content, warnings = _inline_icons(content)
+            content, warnings = _inline_icons(
+                content,
+                icons_dir,
+                icons_fallback_dir,
+            )
             if not pending_edits:
                 _cache_put(
                     _SLIDE_CACHE, _SLIDE_CACHE_LOCK, path_str, mtime,
                     (content, warnings, disk_annotations, id_to_tag),
                 )
 
-        mem_annotations = app.config['ANNOTATIONS'].get(name, {})
-        merged: dict[str, str] = {}
-        for ann in disk_annotations:
-            merged[ann['element_id']] = ann['annotation']
-        merged.update(mem_annotations)
+        if name in app.config['ANNOTATIONS']:
+            merged = dict(app.config['ANNOTATIONS'][name])
+        else:
+            merged = {
+                ann['element_id']: ann['annotation']
+                for ann in disk_annotations
+            }
 
         annotations_list = [
             {
@@ -698,29 +759,28 @@ def create_app(
         if len(annotation) > 10000:
             return jsonify({'error': 'Annotation too long (max 10000 chars)'}), 400
 
-        if name not in app.config['ANNOTATIONS']:
-            app.config['ANNOTATIONS'][name] = {}
+        annotations, error = _get_annotation_snapshot(name)
+        if error is not None:
+            return error
 
-        app.config['ANNOTATIONS'][name][element_id] = annotation
+        annotations[element_id] = annotation
 
         return jsonify({
             'status': 'ok',
-            'annotations_count': len(app.config['ANNOTATIONS'][name]),
+            'annotations_count': len(annotations),
         })
 
     @app.route('/api/slide/<name>/annotate/<element_id>', methods=['DELETE'])
     def delete_annotate(name: str, element_id: str):
-        annotations = app.config['ANNOTATIONS']
-        # Ensure the file key exists so save-all knows to rewrite this file
-        # even if no new annotations were added (pure delete path).
-        if name not in annotations:
-            annotations[name] = {}
-        if element_id in annotations[name]:
-            del annotations[name][element_id]
+        annotations, error = _get_annotation_snapshot(name)
+        if error is not None:
+            return error
+        if element_id in annotations:
+            del annotations[element_id]
 
         return jsonify({
             'status': 'ok',
-            'annotations_count': len(annotations.get(name, {})),
+            'annotations_count': len(annotations),
         })
 
     @app.route('/api/slide/<name>/edit', methods=['POST'])
@@ -866,6 +926,7 @@ def create_app(
 
         filenames = sorted(set(annotations.keys()) | set(pending_edits.keys()))
         for filename in filenames:
+            has_staged_annotations = filename in annotations
             anns = annotations.get(filename, {})
             edits = pending_edits.get(filename, [])
             # anns may be empty when the user deleted all annotations — still
@@ -891,6 +952,8 @@ def create_app(
                 item['element_id']: item['annotation']
                 for item in parse_annotations(root)
             }
+            if not has_staged_annotations:
+                anns = old_annotations
 
             # Clear all existing annotations from the file before writing current state
             for elem in root.iter():

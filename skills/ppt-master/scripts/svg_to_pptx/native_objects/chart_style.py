@@ -6,8 +6,18 @@ import math
 from typing import Any
 from xml.etree import ElementTree as ET
 
+from .marker_attributes import native_import_source
+
 from ..drawingml.context import ConvertContext
-from ..drawingml.utils import detect_text_lang, parse_font_family, px_to_emu, _xml_escape
+from ..drawingml.utils import (
+    _xml_escape,
+    detect_text_lang,
+    parse_font_family,
+    px_to_emu,
+    quantize_ooxml_alpha,
+    text_has_rtl_characters,
+    text_uses_rtl,
+)
 from .chart_data import _DEFAULT_CHART_COLORS
 from .marker_common import (
     _bool_attr,
@@ -289,7 +299,11 @@ def _font_face_xml(font_face: str | None) -> str:
     fonts = parse_font_family(font_face)
     latin_font = _xml_escape(fonts["latin"])
     ea_font = _xml_escape(fonts["ea"])
-    return f'<a:latin typeface="{latin_font}"/><a:ea typeface="{ea_font}"/>'
+    return (
+        f'<a:latin typeface="{latin_font}"/>'
+        f'<a:ea typeface="{ea_font}"/>'
+        f'<a:cs typeface="{latin_font}"/>'
+    )
 
 
 def _chart_tx_pr_xml(
@@ -298,16 +312,20 @@ def _chart_tx_pr_xml(
     *,
     bold: bool = False,
     font_face: str | None = None,
+    language: str | None = None,
 ) -> str:
     fill_xml = (
         f'<a:solidFill><a:srgbClr val="{color}"/></a:solidFill>'
         if color else ""
     )
     bold_attr = ' b="1"' if bold else ""
+    resolved_language = language or 'en-US'
+    rtl_attr = ' rtl="1"' if text_uses_rtl('', language) else ''
     return (
-        "<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr>"
-        f'<a:defRPr sz="{font_size}"{bold_attr}>{fill_xml}{_font_face_xml(font_face)}</a:defRPr>'
-        '</a:pPr><a:endParaRPr lang="en-US"/></a:p></c:txPr>'
+        f"<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr{rtl_attr}>"
+        f'<a:defRPr lang="{resolved_language}" sz="{font_size}"{bold_attr}>'
+        f'{fill_xml}{_font_face_xml(font_face)}</a:defRPr>'
+        f'</a:pPr><a:endParaRPr lang="{resolved_language}"/></a:p></c:txPr>'
     )
 
 
@@ -363,7 +381,7 @@ def _alpha_xml(value: Any, field_name: str = "fill_opacity") -> str:
         raise RuntimeError(f"Native PPTX chart {field_name} must be finite")
     if alpha < 0 or alpha > 1:
         raise RuntimeError(f"Native PPTX chart {field_name} must be between 0 and 1")
-    return f'<a:alpha val="{int(round(alpha * 100000))}"/>'
+    return f'<a:alpha val="{quantize_ooxml_alpha(alpha)}"/>'
 
 
 def _axis_title_xml(
@@ -372,6 +390,7 @@ def _axis_title_xml(
     font_size: int,
     color: str | None = None,
     font_face: str | None = None,
+    primary_language: str | None = None,
 ) -> str:
     entry = _chart_text_entry(title)
     if entry is None:
@@ -382,11 +401,19 @@ def _axis_title_xml(
         f'<a:solidFill><a:srgbClr val="{text_color}"/></a:solidFill>'
         if text_color else ""
     )
-    lang = detect_text_lang(text)
+    lang = detect_text_lang(text, primary_language)
+    rtl_attr = (
+        ' rtl="1"'
+        if text_uses_rtl(text, primary_language)
+        else ''
+    )
+    run_rtl = '<a:rtl val="1"/>' if text_has_rtl_characters(text) else ''
     return (
         "<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/>"
-        f'<a:p><a:r><a:rPr lang="{lang}" sz="{_chart_text_entry_font_size(item, font_size)}">'
-        f"{fill_xml}{_font_face_xml(_chart_text_entry_font_face(item, font_face))}</a:rPr>"
+        f'<a:p><a:pPr{rtl_attr}/><a:r><a:rPr lang="{lang}" '
+        f'sz="{_chart_text_entry_font_size(item, font_size)}">'
+        f"{fill_xml}{_font_face_xml(_chart_text_entry_font_face(item, font_face))}"
+        f"{run_rtl}</a:rPr>"
         f"<a:t>{_xml_escape(text)}</a:t></a:r></a:p>"
         "</c:rich></c:tx><c:layout/><c:overlay val=\"0\"/></c:title>"
     )
@@ -472,7 +499,8 @@ def _native_chart_chrome_errors(elem: ET.Element, payload: dict[str, Any]) -> li
     suffix = "" if len(missing) <= 5 else f", and {len(missing) - 5} more"
     return [
         "Native PPTX chart metadata contains title/axis text that is not visible "
-        f"inside the fallback marker and would appear only after --native-objects: {sample}{suffix}. "
+        "inside the fallback marker and would appear only after "
+        f"--native-charts-and-tables: {sample}{suffix}. "
         "Use `name` for object naming, or draw the same text in the chart fallback."
     ]
 
@@ -481,7 +509,7 @@ def _native_chart_export_payload(
     elem: ET.Element,
     payload: dict[str, Any],
 ) -> tuple[dict[str, Any], list[str]]:
-    if elem.get("data-pptx-native-source") == "pptx":
+    if native_import_source(elem) == "pptx":
         return payload, []
     fallback_texts = set(_visible_fallback_texts(elem))
     output = payload
@@ -619,7 +647,8 @@ def _native_chart_chrome_warnings(elem: ET.Element, payload: dict[str, Any]) -> 
         suffix = "" if len(missing_companion) <= 5 else f", and {len(missing_companion) - 5} more"
         warnings.append(
             "Native PPTX chart companion text is not visible inside the fallback "
-            f"marker and may appear only after --native-objects: {sample}{suffix}. "
+            "marker and may appear only after --native-charts-and-tables: "
+            f"{sample}{suffix}. "
             "Keep companion metadata aligned with visible chart annotations."
         )
     return warnings
@@ -657,7 +686,17 @@ def _text_box_xml(
         if color else ""
     )
     bold_attr = ' b="1"' if bold else ""
-    lang = detect_text_lang(text)
+    lang = detect_text_lang(text, ctx.primary_language)
+    run_rtl = '<a:rtl val="1"/>' if text_has_rtl_characters(text) else ''
+    run_properties_xml = (
+        f'{fill_xml}{_font_face_xml(font_face)}'
+        f'{run_rtl}'
+    )
+    rtl_attr = (
+        ' rtl="1"'
+        if text_uses_rtl(text, ctx.primary_language)
+        else ''
+    )
     name = _xml_escape(f"Chart {role.title()} {shape_id}")
     return f'''<p:sp>
 <p:nvSpPr>
@@ -673,8 +712,8 @@ def _text_box_xml(
 <p:txBody>
 <a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t" anchorCtr="0"/>
 <a:lstStyle/>
-<a:p><a:pPr algn="{algn}"/>
-<a:r><a:rPr lang="{lang}" sz="{font_size}"{bold_attr}>{fill_xml}{_font_face_xml(font_face)}</a:rPr><a:t>{_xml_escape(text)}</a:t></a:r>
+<a:p><a:pPr algn="{algn}"{rtl_attr}/>
+<a:r><a:rPr lang="{lang}" sz="{font_size}"{bold_attr}>{run_properties_xml}</a:rPr><a:t>{_xml_escape(text)}</a:t></a:r>
 </a:p>
 </p:txBody>
 </p:sp>'''
