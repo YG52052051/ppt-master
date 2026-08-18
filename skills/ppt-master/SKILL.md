@@ -9,6 +9,8 @@ description: >
 
 # PPT Master Skill
 
+> **📋 汇报/总结类项目附加原则（硬性）**：做汇报、年中/年终总结、规划类 PPT 时，**先读同目录 [`汇报PPT制作原则_领导反馈提炼.md`](./汇报PPT制作原则_领导反馈提炼.md)** —— 领导审稿反馈提炼的 20 条原则 + 反面案例（结构三段式 / 总览主张 / 每页主旨句 / 数字必须有依据 / 叫法对齐公司标准 / 去 AI 腔 / 标题统一不跳 / 卡片坐标对齐 / 拿不准给合理默认+标注理由）。做完对照其「反面案例」自查。
+
 > AI-driven multi-format SVG content generation system. Converts source documents into high-quality SVG pages through multi-role collaboration and exports to PPTX.
 
 **Core Pipeline**: `Source Document → Create Project → [Template] → Strategist Structured Plan → [Image_Generator] → Executor Live Preview → Quality Check → Post-processing → Export`
@@ -92,6 +94,7 @@ description: >
 | `${SKILL_DIR}/scripts/slice_images.py` | Slice one AI illustration sheet into individual spot-illustration elements |
 | `${SKILL_DIR}/scripts/svg_authoring_view.py` | Create a lightweight non-destructive inspection projection of PPTX-imported SVGs; never a release source |
 | `${SKILL_DIR}/scripts/svg_quality_checker.py` | SVG quality check |
+| `${SKILL_DIR}/scripts/check_overlap.py` | SVG 文本叠字检测（字符盒真实重叠判定，自动排除 KPI 卡「大数字+下方小标签」合理设计；退出码 0/1 便于脚本集成） |
 | `${SKILL_DIR}/scripts/preset_shape_svg.py` | Print one registry-backed native PowerPoint preset fragment to stdout for hand-authored SVG insertion |
 | `${SKILL_DIR}/scripts/total_md_split.py` | Speaker notes splitting |
 | `${SKILL_DIR}/scripts/finalize_svg.py` | SVG post-processing (unified entry) |
@@ -695,6 +698,13 @@ Canonical three-command pipeline (this step is the workflow authority;
 **Step 7.1** — Split speaker notes:
 ```bash
 python3 ${SKILL_DIR}/scripts/total_md_split.py <project_path>
+```
+
+**导出前质检（推荐）— 文本叠字检测**：
+```bash
+python3 ${SKILL_DIR}/scripts/check_overlap.py <project_path>/svg_output
+# 退出码 0=无叠字 / 1=有叠字；按真实字符盒判定垂直+水平重叠，
+# 自动排除 KPI 卡「大数字 + 下方小标签」的合理设计。检出叠字时先修 svg_output 再继续 7.2。
 ```
 
 **Step 7.2** — SVG post-processing (icon embedding / image crop & embed / raster image optimization / text flattening):
